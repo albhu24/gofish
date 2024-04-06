@@ -1,6 +1,3 @@
-import { PersonMatch } from "aws-sdk/clients/rekognition";
-import { bool } from "aws-sdk/clients/signer";
-
 class GoFish {
   public ranks: string[];
   public deck: string[] | any;
@@ -99,14 +96,15 @@ class GoFish {
     }
   }
   deal(...args: Person[]): void {
+    // Deal cards
+    // Lets say 5 cards each for now
+    // Could refactor here to deal in a fair way (i.e deal 1 card at a time to each player until count is reached)
     for (const person of args) {
       console.log(person);
       for (let i = 0; i < 5; i++) {
         if (this.deck.length > 0) person.hand.push(this.deck.pop());
       }
     }
-    // Deal cards
-    // Lets say 5 cards each for now
   }
   determineOrderAndShuffle(...args: Person[]): void {
     // Populate hands
@@ -130,33 +128,46 @@ class GoFish {
     // }
     // console.log(startPlayer, "this is who is starting");
   }
+  validMove(currentPlayer: Person, card: string) {
+    for (const c of currentPlayer.hand) {
+      if (c[0] === card[0]) return true;
+    }
+    return false;
+  }
   fish(currentPlayer: Person, fishedPlayer: Person, card: string): string {
     // Need to have at least one of the cards that you are asking for
     // If player makes a catch, can proceed fishing
-    if (!currentPlayer.hand.includes(card)) {
+    if (currentPlayer !== this.order[0]) {
+      return "It's not your turn";
+    }
+    if (!this.validMove(currentPlayer, card)) {
       return "Invalid Move";
     }
-    let compare: string | undefined = undefined;
-    if (card[0] === "1") {
-      compare = "10";
-    } else {
-      compare = card;
-    }
+    // let compare: string | undefined = undefined;
+    // if (card.length === 2) {
+    //   compare = "10";
+    // } else {
+    //   compare = card;
+    // }
+
     const newFishedHand: string[] = [];
     for (let i = 0; i < fishedPlayer.hand.length; i++) {
       if (
-        fishedPlayer.hand.length[i].slice(0, 1) !== compare ||
-        fishedPlayer.hand.length[i].slice(0, 2) !== compare
+        // '4s'
+        // fishedPlayer.hand[i].slice(0, 1) !== compare ||
+        // fishedPlayer.hand[i].slice(0, 2) !== compare
+        fishedPlayer.hand[i][0] !== card[0]
       ) {
-        newFishedHand.push(compare);
+        newFishedHand.push(card);
       } else {
-        currentPlayer.hand.push(compare);
+        currentPlayer.hand.push(card);
       }
     }
     if (newFishedHand.length === fishedPlayer.hand.length) {
       // Current player draws a card
       // didnt have the card in the first place
       this.draw(currentPlayer);
+      this.nextTurn();
       return "Go Fish";
     } else {
       if (this.winCheck(currentPlayer))
@@ -166,23 +177,20 @@ class GoFish {
     }
     // need to check churrent player and fished palyers hand to see if they lost or won
   }
-  endTurnCheck() {
-    // Check for
-    // Dra
-  }
+
   nextTurn() {
-    const finished = this.order[0];
-    this.order.shift();
-    this.order.push(finished);
+    if (this.order.length) {
+      this.order.push(this.order.shift()!); // Non Null Assertion Operator
+    }
   }
   winCheck(player: Person): boolean {
-    const d = {};
+    const d: { [key: string]: number } = {};
     for (let i = 0; i < player.hand.length; i++) {
       let compare: string | undefined = undefined;
-      if (player.hand.length[i][0] === "1") {
+      if (player.hand[i][0] === "1") {
         compare = "10";
       } else {
-        compare = player.hand[i][0];
+        compare = player.hand[i];
       }
       if (!d[compare]) {
         d[compare] = 1;
@@ -195,10 +203,9 @@ class GoFish {
     }
     return false;
   }
-  endGame() {}
   draw(person: Person): void {
     // If no cards in hand, then draw 1
-    // If no cards left in deck, they are out of thee game
+    // If no cards left in deck, they are out of the game
     if (!this.deck.length) {
       person.status = "lose";
       return;
@@ -216,6 +223,7 @@ class Person {
   constructor(name: string) {
     this.name = name;
     this.hand = [];
+    // Could be better to keep hand count, so we don't have to recount every time
     this.status = "alive";
   }
 }
@@ -224,7 +232,10 @@ const game1 = new GoFish(2);
 const albert = new Person("albert");
 const caitlin = new Person("caitlin");
 game1.shuffle();
-console.log(game1.deck);
 game1.determineOrderAndShuffle(albert, caitlin);
-console.log(game1.order);
-console.log(game1.deck);
+game1.deal(albert, caitlin);
+console.log(albert);
+console.log(caitlin);
+console.log(game1.fish(albert, caitlin, "4"));
+console.log(albert);
+console.log(caitlin);
