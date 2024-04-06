@@ -1,12 +1,130 @@
+type Rank =
+  | "2"
+  | "3"
+  | "4"
+  | "5"
+  | "6"
+  | "7"
+  | "8"
+  | "9"
+  | "10"
+  | "J"
+  | "Q"
+  | "K"
+  | "A";
+
+enum Suit {
+  Spades = "s",
+  Hearts = "h",
+  Clubs = "c",
+  Diamonds = "d",
+}
+
+enum Status {
+  Win = "Win",
+  Lose = "Lose",
+  Playing = "Playing",
+}
+
+interface rankValues {
+  [key: string]: number;
+}
+
+type Card = `${Rank}${Suit}`;
+
+class Deck {
+  private deck: Card[];
+
+  constructor() {
+    this.deck = [
+      "2s",
+      "2h",
+      "2d",
+      "2c",
+      "3s",
+      "3h",
+      "3d",
+      "3c",
+      "4s",
+      "4h",
+      "4d",
+      "4c",
+      "5s",
+      "5h",
+      "5d",
+      "5c",
+      "6s",
+      "6h",
+      "6d",
+      "6c",
+      "7s",
+      "7h",
+      "7d",
+      "7c",
+      "8s",
+      "8h",
+      "8d",
+      "8c",
+      "9s",
+      "9h",
+      "9d",
+      "9c",
+      "10s",
+      "10h",
+      "10d",
+      "10c",
+      "Js",
+      "Jh",
+      "Jd",
+      "Jc",
+      "Qs",
+      "Qh",
+      "Qd",
+      "Qc",
+      "Ks",
+      "Kh",
+      "Kd",
+      "Kc",
+      "As",
+      "Ah",
+      "Ad",
+      "Ac",
+    ];
+  }
+  // Fisher - Yates shuffling aglo (Knuth shuffle)
+  public shuffle(): void {
+    const length = this.deck.length;
+    for (let i = length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]];
+    }
+  }
+
+  public drawCard(): Card | undefined {
+    // Draw a card from the deck
+    if (this.deck.length) {
+      return this.deck.pop();
+    }
+    return undefined;
+  }
+  public getDeckSize(): number {
+    return this.deck.length;
+  }
+}
+
+const deck = new Deck();
+console.log(deck);
+deck.shuffle();
+console.log(deck);
+
 class GoFish {
-  public ranks: string[];
-  public deck: string[] | any;
-  public players: number;
-  public suits: string[];
-  public numberOfPlayers: number;
+  private readonly ranks: Rank[];
+  private readonly suits: Suit[];
+  private readonly rankValues: rankValues;
+  private numPlayers: number;
+  private deck: Deck;
   public order: Person[];
-  public rankValues: { [key: string]: number };
-  constructor(n: number) {
+  constructor(numPlayers: number) {
     this.ranks = [
       "2",
       "3",
@@ -22,6 +140,7 @@ class GoFish {
       "K",
       "A",
     ];
+    this.deck = new Deck();
     this.rankValues = {
       "2c": 1,
       "2d": 2,
@@ -76,42 +195,39 @@ class GoFish {
       Ah: 51,
       As: 52,
     };
-    this.suits = ["s", "h", "c", "d"];
-    this.deck = [];
-    this.players = 0;
-    this.numberOfPlayers = n;
+    this.suits = [Suit.Clubs, Suit.Hearts, Suit.Spades, Suit.Diamonds];
+    this.numPlayers = numPlayers;
     this.order = [];
   }
-  shuffle(): void {
-    this.deck = [];
-    const dealt = new Set();
-    while (this.deck.length < 52) {
-      const randomRank = Math.floor(Math.random() * 13);
-      const randomSuit = Math.floor(Math.random() * 4);
-      if (dealt.has(this.ranks[randomRank] + this.suits[randomSuit])) {
-        continue;
-      }
-      this.deck.push(this.ranks[randomRank] + this.suits[randomSuit]);
-      dealt.add(this.ranks[randomRank] + this.suits[randomSuit]);
-    }
-  }
-  deal(...args: Person[]): void {
+
+  deal(...args: Person[]): string {
     // Deal cards
     // Lets say 5 cards each for now
     // Could refactor here to deal in a fair way (i.e deal 1 card at a time to each player until count is reached)
     for (const person of args) {
       console.log(person);
       for (let i = 0; i < 5; i++) {
-        if (this.deck.length > 0) person.hand.push(this.deck.pop());
+        if (this.deck.getDeckSize() > 0) {
+          const pop = this.deck.drawCard();
+          if (pop) {
+            person.hand.push(pop);
+          }
+        }
       }
     }
+    for (const person of args) {
+      if (this.winCheck(person)) {
+        return `${person.name} wins!`;
+      }
+    }
+    return "Cards Dealt!";
   }
   determineOrderAndShuffle(...args: Person[]): void {
     // Populate hands
     for (const person of args) {
       this.order.push(person);
     }
-    this.shuffle();
+    this.deck.shuffle();
     // for (const person of args) {
     //   person.hand.push(this.deck.pop());
     // }
@@ -140,35 +256,32 @@ class GoFish {
     if (currentPlayer !== this.order[0]) {
       return "It's not your turn";
     }
-    if (!this.validMove(currentPlayer, card)) {
-      return "Invalid Move";
-    }
-    // let compare: string | undefined = undefined;
-    // if (card.length === 2) {
-    //   compare = "10";
-    // } else {
-    //   compare = card;
-    // }
 
+    let validMove = false;
     const newFishedHand: string[] = [];
     for (let i = 0; i < fishedPlayer.hand.length; i++) {
-      if (
-        // '4s'
-        // fishedPlayer.hand[i].slice(0, 1) !== compare ||
-        // fishedPlayer.hand[i].slice(0, 2) !== compare
-        fishedPlayer.hand[i][0] !== card[0]
-      ) {
+      if (currentPlayer.hand[i][0] === card[0]) validMove = true;
+      if (fishedPlayer.hand[i][0] !== card[0]) {
         newFishedHand.push(card);
       } else {
         currentPlayer.hand.push(card);
       }
     }
+
+    if (!validMove) {
+      return "Invalid Move";
+    }
     if (newFishedHand.length === fishedPlayer.hand.length) {
       // Current player draws a card
-      // didnt have the card in the first place
-      this.draw(currentPlayer);
-      this.nextTurn();
-      return "Go Fish";
+      // fishedPlayer did have the card
+      const cardDrawn: Card | undefined = this.deck.drawCard();
+      if (cardDrawn) {
+        currentPlayer.hand.push(cardDrawn);
+        this.nextTurn();
+        return "Go Fish";
+      }
+      currentPlayer.status = Status.Lose;
+      return `${currentPlayer.name} lost!`;
     } else {
       if (this.winCheck(currentPlayer))
         return `${currentPlayer.name} wins, game over!`;
@@ -180,7 +293,8 @@ class GoFish {
 
   nextTurn() {
     if (this.order.length) {
-      this.order.push(this.order.shift()!); // Non Null Assertion Operator
+      const pop = this.order.shift();
+      if (pop) this.order.push(pop); // Non Null Assertion Operator
     }
   }
   winCheck(player: Person): boolean {
@@ -197,45 +311,35 @@ class GoFish {
       }
       d[compare] += 1;
       if (d[compare] === 4) {
-        player.status = "win";
+        player.status = Status.Win;
         return true;
       }
     }
     return false;
-  }
-  draw(person: Person): void {
-    // If no cards in hand, then draw 1
-    // If no cards left in deck, they are out of the game
-    if (!this.deck.length) {
-      person.status = "lose";
-      return;
-    }
-    person.hand.push(this.deck.pop());
-    return;
   }
 }
 
 class Person {
   public name: string;
   public hand: string[];
-  public status: "alive" | "lose" | "win";
+  public status: Status.Playing | Status.Win | Status.Lose;
 
   constructor(name: string) {
     this.name = name;
     this.hand = [];
     // Could be better to keep hand count, so we don't have to recount every time
-    this.status = "alive";
+    this.status = Status.Playing;
   }
 }
 
-const game1 = new GoFish(2);
-const albert = new Person("albert");
-const caitlin = new Person("caitlin");
-game1.shuffle();
-game1.determineOrderAndShuffle(albert, caitlin);
-game1.deal(albert, caitlin);
-console.log(albert);
-console.log(caitlin);
-console.log(game1.fish(albert, caitlin, "4"));
-console.log(albert);
-console.log(caitlin);
+// const game1 = new GoFish(2);
+// const albert = new Person("albert");
+// const caitlin = new Person("caitlin");
+// game1.shuffle();
+// game1.determineOrderAndShuffle(albert, caitlin);
+// game1.deal(albert, caitlin);
+// console.log(albert);
+// console.log(caitlin);
+// console.log(game1.fish(albert, caitlin, "4"));
+// console.log(albert);
+// console.log(caitlin);
